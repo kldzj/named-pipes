@@ -45,4 +45,26 @@ describe('Sender', () => {
 
     expect(callback).toHaveBeenCalled();
   });
+
+  it('should be able to produce a writable stream', async () => {
+    pipe = createNamedPipe();
+    const sender = pipe.createSender();
+    const stream = sender.getWritableStream();
+    await sender.connect();
+
+    const callback = jest.fn();
+    const receiver = pipe.createReceiver();
+    receiver.on('data', callback);
+    await receiver.connect();
+
+    expect(stream.writable).toBe(true);
+    stream.write('hello', () => [
+      stream.write('world', () => {
+        stream.end(() => {
+          expect(callback).toHaveBeenCalledTimes(2);
+          expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+        });
+      }),
+    ]);
+  });
 });

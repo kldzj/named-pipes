@@ -1,4 +1,4 @@
-import { chmodSync } from 'fs';
+import { Writable, WritableOptions } from 'stream';
 import { Server, Socket } from 'net';
 import { getDebugLogger, NamedPipe } from '.';
 import { EventMap, Base } from './base';
@@ -20,6 +20,38 @@ export interface SenderOptions {
 
 export const DEFAULT_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
+export class SenderWritable extends Writable {
+  private _sender: Sender;
+
+  get sender(): Sender {
+    return this._sender;
+  }
+
+  constructor(sender: Sender, opts?: WritableOptions) {
+    super(opts);
+    this._sender = sender;
+  }
+
+  _write(chunk: any, _encoding?: any, callback?: any): boolean {
+    const sockets = this.sender.getSockets();
+    if (!sockets.length) {
+      return false;
+    }
+
+    function write(socket?: Socket) {
+      if (!socket) return callback();
+      if (socket.writable) {
+        socket.write(chunk, () => write(sockets.shift()));
+      } else {
+        write(sockets.shift());
+      }
+    }
+
+    write(sockets.shift());
+    return true;
+  }
+}
+
 export class Sender extends Base<SenderEvents, SenderOptions> {
   private server?: Server;
   private sockets: Socket[] = [];
@@ -27,6 +59,10 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
 
   constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_SENDER_OPTIONS) {
     super(pipe, opts);
+  }
+
+  public getWritableStream(opts?: WritableOptions): SenderWritable {
+    return new SenderWritable(this, opts);
   }
 
   public getServer(): Server | undefined {
@@ -74,16 +110,19 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
     });
   }
 
-  public write(data: any): void {
+  public write(data: any): boolean {
     if (!this.isConnected()) {
       throw new Error('Not connected');
     }
 
-    this.debug('Writing %d bytes to %d socket(s)', data.length, this.sockets.length);
-    this.sockets.forEach((socket) => socket.writable && socket.write(data));
+    const sockets = this.sockets.filter((socket) => socket.writable);
+    this.debug('Writing %d bytes to %d socket(s)', data.length, sockets.length);
+    sockets.forEach((socket) => socket.write(data));
+
+    return sockets.length > 0;
   }
 
-  public destroy() {
+  public destroy(): this {
     for (const socket of this.sockets) {
       socket.destroy(new Error('Pipe destroyed'));
     }
@@ -92,5 +131,7 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
     this.server?.close();
     this.server = undefined;
     this.connected = false;
+
+    return this;
   }
 }
