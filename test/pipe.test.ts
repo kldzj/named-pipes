@@ -15,6 +15,6 @@ describe('NamedPipe', () => {
   it('should allow absolute paths', () => {
     const path = '/tmp/test';
     const pipe = createNamedPipe(path);
-    expect(pipe.path).toBe(path);
+    expect(pipe.path).toContain(path);
   });
 });
