@@ -1,4 +1,5 @@
 import { Socket } from 'net';
+import { PassThrough, Readable, TransformOptions } from 'stream';
 import { getDebugLogger, NamedPipe } from '.';
 import { EventMap, Base } from './base';
 
@@ -36,6 +37,14 @@ export class Receiver extends Base<ReceiverEvents, ReceiverOptions> {
 
   constructor(pipe: NamedPipe, opts: ReceiverOptions = DEFAULT_RECEIVER_OPTIONS) {
     super(pipe, opts);
+  }
+
+  public getReadableStream(opts?: TransformOptions): Readable {
+    if (!this.socket || !this.isConnected()) {
+      throw new Error('Socket not connected');
+    }
+
+    return this.socket.pipe(new PassThrough(opts));
   }
 
   public getSocket(): Socket | undefined {
