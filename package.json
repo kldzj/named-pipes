@@ -6,6 +6,14 @@
     "dist/**/*"
   ],
   "license": "MIT",
+  "author": {
+    "name": "Nikolai Kolodziej",
+    "email": "npm@kldzj.dev",
+    "url": "https://github.com/kldzj"
+  },
+  "homepage": "https://github.com/kldzj/named-pipes",
+  "repository": "https://github.com/kldzj/named-pipes",
+  "bugs": "https://github.com/kldzj/named-pipes/issues",
   "scripts": {
     "test": "jest",
     "build": "tsc",
