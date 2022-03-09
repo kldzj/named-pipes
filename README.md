@@ -31,7 +31,7 @@ sender.write('hello world');
 const stream = sender.getWritableStream();
 someSourceStream.pipe(stream);
 
-// once you're done, destroy the server,
+// once you're done, destroy the pipe,
 // this will close all existing connections
-sender.destroy();
+pipe.destroy();
 ```
