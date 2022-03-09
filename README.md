@@ -25,7 +25,11 @@ await sender.connect();
 // receiver.connect() will fail if socket does not exist
 await receiver.connect();
 
+// use the convenience write method
 sender.write('hello world');
+// or create a stream you can pipe into
+const stream = sender.getWritableStream();
+someSourceStream.pipe(stream);
 
 // once you're done, destroy the server,
 // this will close all existing connections
