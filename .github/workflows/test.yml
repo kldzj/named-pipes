@@ -1,0 +1,28 @@
+name: Test
+on:
+  push:
+  pull_request:
+    branches:
+      - master
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [14.x, 16.x]
+    env:
+      NODE_ENV: test
+      DEBUG: '*'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: yarn install
+      - name: Build
+        run: yarn build
+      - name: Test
+        run: npm test
