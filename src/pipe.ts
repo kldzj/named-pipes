@@ -1,4 +1,4 @@
-import { existsSync, unlinkSync } from 'fs';
+import { existsSync } from 'fs';
 import { getDebugLogger, Receiver, ReceiverOptions, Sender, SenderOptions } from '.';
 
 export class NamedPipe {
@@ -15,18 +15,18 @@ export class NamedPipe {
     this._path = path;
   }
 
-  public exists() {
+  public exists(): boolean {
     return existsSync(this.path);
   }
 
-  public createReceiver(opts?: ReceiverOptions) {
+  public createReceiver(opts?: ReceiverOptions): Receiver {
     this.debug('Creating receiver');
     const receiver = new Receiver(this, opts);
     this.receivers.push(receiver);
     return receiver;
   }
 
-  public createSender(opts?: SenderOptions) {
+  public createSender(opts?: SenderOptions): Sender {
     if (this.sender) {
       return this.sender;
     }
@@ -36,14 +36,10 @@ export class NamedPipe {
     return this.sender;
   }
 
-  public destroy() {
+  public destroy(): this {
     this.debug('Destroying pipe');
     this.sender?.destroy();
     this.receivers.forEach((receiver) => receiver.destroy());
-
-    if (process.platform !== 'win32' && this.exists()) {
-      this.debug('Unlinking pipe');
-      unlinkSync(this.path);
-    }
+    return this;
   }
 }

@@ -8,7 +8,7 @@ function _createUnixPipe(path: string): NamedPipe {
 }
 
 function _createWindowsPipe(name: string): NamedPipe {
-  return new NamedPipe(`\\\\.\\pipe\\${name}`);
+  return new NamedPipe(`\\\\.\\pipe\\${name.replace(/:/g, '')}`);
 }
 
 /**
@@ -22,7 +22,6 @@ export function createNamedPipe(name?: string): NamedPipe {
   }
 
   if (process.platform === 'win32') {
-    name = name.replace(/:/g, '');
     return _createWindowsPipe(name);
   }
 

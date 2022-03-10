@@ -18,7 +18,8 @@ export interface ReceiverOptions {
    */
   autoDestroy: boolean;
   /**
-   * Automatically drain socket when stream is ended
+   * If allowHalfOpen is true, then the socket won't automatically send
+   * a FIN packet when the other end of the socket sends a FIN packet.
    * @default false
    */
   allowHalfOpen: boolean;

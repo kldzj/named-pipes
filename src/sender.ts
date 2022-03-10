@@ -2,6 +2,7 @@ import { Writable, WritableOptions } from 'stream';
 import { Server, Socket } from 'net';
 import { getDebugLogger, NamedPipe } from '.';
 import { EventMap, Base } from './base';
+import { unlinkSync } from 'fs';
 
 export interface SenderEvents extends EventMap {
   'socket:connected': (socket: Socket) => void;
@@ -131,6 +132,11 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
     this.server?.close();
     this.server = undefined;
     this.connected = false;
+
+    if (process.platform !== 'win32' && this.exists()) {
+      this.debug('Unlinking pipe');
+      unlinkSync(this.pipe.path);
+    }
 
     return this;
   }
