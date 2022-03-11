@@ -2,7 +2,7 @@ import { Socket } from 'net';
 import { FileHandle } from 'fs/promises';
 import { TransformOptions, Writable } from 'stream';
 import { promises as fs, constants as FSC } from 'fs';
-import { mkfifo, NamedPipe, getDebugLogger } from '..';
+import { mkfifo, NamedPipe } from '..';
 import { BaseSender, SenderOptions } from '../base';
 
 export const DEFAULT_FIFO_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };

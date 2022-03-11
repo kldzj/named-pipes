@@ -1,7 +1,6 @@
 import { Readable, TransformOptions, Writable, WritableOptions } from 'stream';
 import { TypedEmitter, ListenerSignature } from 'tiny-typed-emitter';
-import { NamedPipe } from '.';
-import { Debugger, getDebugLogger } from './debug';
+import { NamedPipe, Debugger, getDebugLogger } from '.';
 
 interface BaseEvents extends ListenerSignature<unknown> {
   connect: () => void;

@@ -2,9 +2,8 @@ import { Socket } from 'net';
 import { FileHandle } from 'fs/promises';
 import { promises as fs, constants as FSC } from 'fs';
 import { PassThrough, Readable, TransformOptions } from 'stream';
-import { NamedPipe } from '..';
+import { NamedPipe, mkfifo } from '..';
 import { BaseReceiver, ReceiverOptions } from '../base';
-import { mkfifo } from '../mkfifo';
 
 export const DEFAULT_FIFO_RECEIVER_OPTIONS: ReceiverOptions = {
   autoDestroy: true,
