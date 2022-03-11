@@ -115,11 +115,10 @@ describe('Receiver', () => {
     const sender = pipe.createSender();
     await sender.connect();
 
-    const receiver = pipe.createReceiver();
-    await receiver.connect();
-
     const callback = jest.fn();
+    const receiver = pipe.createReceiver();
     receiver.on('data', callback);
+    await receiver.connect();
 
     sender.once('connect', () => {
       sender.write('test', () => {
@@ -131,36 +130,39 @@ describe('Receiver', () => {
 
   it('should handle multiple pipes without blocking', async () => {
     await Promise.all(
-      new Array(15).fill(0).map(async () => {
-        const pipe = createNamedPipe();
+      new Array(15).fill(0).map(async (_, i) => {
+        const pipe = createNamedPipe(`multi-${i}`);
         const sender = pipe.createSender();
         const receiver = pipe.createReceiver();
 
         const callback = jest.fn();
         receiver.on('data', callback);
 
-        function write(): Promise<void> {
-          return new Promise((resolve, reject) => {
-            sender.write('test', (err) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve();
-              }
-            });
-          });
-        }
-
         await sender.connect();
         await receiver.connect();
 
-        await write();
-        // Since waiting on the connect event would be blocking,
-        // we instead wait for the data event to be emitted.
-        await delay(100);
+        if (process.platform === 'win32') {
+          await new Promise<void>((resolve) => {
+            if (sender.isConnected()) {
+              return resolve();
+            }
 
+            sender.once('connect', resolve);
+          });
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          sender.write('test', (err) => {
+            if (err) {
+              return reject(err);
+            }
+            resolve();
+          });
+        });
+
+        await delay(25);
         await pipe.destroy();
-        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+        expect(callback).toBeCalledWith(expect.any(Buffer));
       })
     );
   });
