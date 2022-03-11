@@ -20,14 +20,13 @@ afterEach(() => {
 describe('Receiver', () => {
   it('should be able to connect', async () => {
     pipe = createNamedPipe();
+    const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
 
     const callback = jest.fn();
     receiver.on('connect', callback);
-    await receiver.connect();
-
-    const sender = pipe.createSender();
     await sender.connect();
+    await receiver.connect();
 
     expect(receiver.isConnected()).toBe(true);
     expect(callback).toBeCalledTimes(1);
@@ -35,14 +34,13 @@ describe('Receiver', () => {
 
   it('should be able to read', async () => {
     pipe = createNamedPipe();
+    const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
+    await sender.connect();
     await receiver.connect();
 
     const callback = jest.fn();
     receiver.on('data', callback);
-
-    const sender = pipe.createSender();
-    await sender.connect();
 
     sender.write('test');
     await delay(100);
