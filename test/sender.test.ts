@@ -44,7 +44,6 @@ describe('Sender', () => {
     });
 
     const callback = jest.fn();
-    const receiver = await pipe.createReceiver().connect();
-    receiver.on('data', callback);
+    await pipe.createReceiver().on('data', callback).connect();
   });
 });
