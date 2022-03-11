@@ -91,22 +91,23 @@ export class SocketSender extends BaseSender {
       return false;
     }
 
-    function write(socket?: Socket): boolean {
-      if (!socket) return callback?.() ?? false;
+    function write(socket?: Socket, error?: Error): boolean {
+      if (!socket || error) return callback?.(error) ?? false;
       if (socket.writable) {
-        return socket.write(chunk, () => write(sockets.shift()));
+        return socket.write(chunk, (e) => write(sockets.shift(), e));
       } else {
         return write(sockets.shift());
       }
     }
 
+    this.debug('Writing %d bytes to %d socket(s)', chunk.length, sockets.length);
     return write(sockets.shift());
   }
 
   public destroy(): Promise<this> {
     return new Promise((resolve) => {
       for (const socket of this.sockets) {
-        socket.end();
+        socket.destroy();
       }
 
       this.debug('Destroying SocketSender');
