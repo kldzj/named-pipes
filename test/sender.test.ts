@@ -42,13 +42,13 @@ describe('Sender', () => {
     await receiver.connect();
 
     expect(stream.writable).toBe(true);
-    stream.write('hello', () => [
+    stream.write('hello', () => {
       stream.write('world', () => {
         stream.end(() => {
           expect(callback).toHaveBeenCalledTimes(2);
           expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
         });
-      }),
-    ]);
+      });
+    });
   });
 });
