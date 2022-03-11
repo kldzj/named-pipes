@@ -1,9 +1,9 @@
 import { Socket } from 'net';
 import { PassThrough, Readable, TransformOptions } from 'stream';
-import { getDebugLogger, NamedPipe } from '.';
-import { EventMap, Base } from './base';
+import { NamedPipe } from '..';
+import { EventMap, BaseReceiver, ReceiverOptions } from '../base';
 
-export interface ReceiverEvents extends EventMap {
+export interface SocketReceiverEvents extends EventMap {
   end: () => void;
   data: (data: Buffer) => void;
   ready: () => void;
@@ -11,33 +11,18 @@ export interface ReceiverEvents extends EventMap {
   timeout: () => void;
 }
 
-export interface ReceiverOptions {
-  /**
-   * Automatically destroy socket when stream is ended
-   * @default true
-   */
-  autoDestroy: boolean;
-  /**
-   * If allowHalfOpen is true, then the socket won't automatically send
-   * a FIN packet when the other end of the socket sends a FIN packet.
-   * @default false
-   */
-  allowHalfOpen: boolean;
-}
-
-export const DEFAULT_RECEIVER_OPTIONS: ReceiverOptions = {
+export const DEFAULT_SOCKET_RECEIVER_OPTIONS: ReceiverOptions = {
   autoDestroy: true,
   allowHalfOpen: false,
 };
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export class Receiver extends Base<ReceiverEvents, ReceiverOptions> {
+export class SocketReceiver extends BaseReceiver {
   private socket?: Socket;
-  private debug = getDebugLogger('receiver');
 
-  constructor(pipe: NamedPipe, opts: ReceiverOptions = DEFAULT_RECEIVER_OPTIONS) {
-    super(pipe, opts);
+  constructor(pipe: NamedPipe, opts: ReceiverOptions = DEFAULT_SOCKET_RECEIVER_OPTIONS) {
+    super(pipe, opts, 'socket');
   }
 
   public getReadableStream(opts?: TransformOptions): Readable {
@@ -76,10 +61,8 @@ export class Receiver extends Base<ReceiverEvents, ReceiverOptions> {
       });
 
       this.socket.on('close', () => this.emit('close'));
-      this.socket.on('ready', () => this.emit('ready'));
-      this.socket.on('drain', () => this.emit('drain'));
       this.socket.on('timeout', () => this.emit('timeout'));
-      this.socket.on('connect', () => this.emit('connected'));
+      this.socket.on('connect', () => this.emit('connect'));
       this.socket.on('error', (e) => this.emit('error', e));
       this.socket.on('data', (c) => {
         this.debug('Reading %d bytes', c.length);
@@ -102,7 +85,7 @@ export class Receiver extends Base<ReceiverEvents, ReceiverOptions> {
   }
 
   public destroy() {
-    this.debug('Destroying socket');
+    this.debug('Destroying SocketReceiver');
     this.socket?.destroy();
     this.socket = undefined;
     this.connected = false;

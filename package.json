@@ -1,6 +1,13 @@
 {
   "name": "@kldzj/named-pipes",
-  "description": "Create and read from/write to named pipes on Unix and Windows",
+  "description": "Create and write to or read from named pipes (or unix sockets). It works on both Windows and Unix.",
+  "keywords": [
+    "named-pipe",
+    "socket",
+    "fifo",
+    "pipe",
+    "ipc"
+  ],
   "version": "1.1.2",
   "main": "dist/index.js",
   "files": [

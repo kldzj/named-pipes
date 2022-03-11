@@ -1,34 +1,18 @@
 import { Writable, WritableOptions } from 'stream';
 import { Server, Socket } from 'net';
-import { getDebugLogger, NamedPipe } from '.';
-import { EventMap, Base } from './base';
-import { unlinkSync } from 'fs';
+import { NamedPipe } from '..';
+import { EventMap, BaseSender, SenderOptions } from '../base';
 
-export interface SenderEvents extends EventMap {
-  'socket:connected': (socket: Socket) => void;
-  'socket:disconnected': (socket: Socket) => void;
-  'socket:error': (socket: Socket, error: Error) => void;
-  'socket:ended': (socket: Socket) => void;
-}
+export const DEFAULT_SOCKET_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
-export interface SenderOptions {
-  /**
-   * Automatically destroy server when all sockets are ended
-   * @default true
-   */
-  autoDestroy: boolean;
-}
+export class SocketSenderWritable extends Writable {
+  private _sender: SocketSender;
 
-export const DEFAULT_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
-
-export class SenderWritable extends Writable {
-  private _sender: Sender;
-
-  get sender(): Sender {
+  get sender(): SocketSender {
     return this._sender;
   }
 
-  constructor(sender: Sender, opts?: WritableOptions) {
+  constructor(sender: SocketSender, opts?: WritableOptions) {
     super(opts);
     this._sender = sender;
   }
@@ -53,17 +37,16 @@ export class SenderWritable extends Writable {
   }
 }
 
-export class Sender extends Base<SenderEvents, SenderOptions> {
+export class SocketSender extends BaseSender {
   private server?: Server;
   private sockets: Socket[] = [];
-  private debug = getDebugLogger('sender');
 
-  constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_SENDER_OPTIONS) {
-    super(pipe, opts);
+  constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_SOCKET_SENDER_OPTIONS) {
+    super(pipe, opts, 'socket');
   }
 
-  public getWritableStream(opts?: WritableOptions): SenderWritable {
-    return new SenderWritable(this, opts);
+  public getWritableStream(opts?: WritableOptions): SocketSenderWritable {
+    return new SocketSenderWritable(this, opts);
   }
 
   public getServer(): Server | undefined {
@@ -82,12 +65,9 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
 
       this.server = new Server((socket) => {
         this.debug('New socket connected');
-        socket.on('error', (e) => this.emit('socket:error', socket, e));
-        socket.on('close', () => this.emit('socket:disconnected', socket));
         socket.on('end', () => {
           this.debug('Connection ended');
           this.sockets = this.sockets.filter((s) => s !== socket);
-          this.emit('socket:ended', socket);
 
           if (this.options.autoDestroy && this.sockets.length === 0) {
             this.debug('All sockets are ended, destroying pipe');
@@ -95,7 +75,6 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
           }
         });
 
-        this.emit('socket:connected', socket);
         this.sockets.push(socket);
       });
 
@@ -128,15 +107,10 @@ export class Sender extends Base<SenderEvents, SenderOptions> {
       socket.destroy(new Error('Pipe destroyed'));
     }
 
-    this.debug('Destroying server');
+    this.debug('Destroying SocketSender');
     this.server?.close();
     this.server = undefined;
     this.connected = false;
-
-    if (process.platform !== 'win32' && this.exists()) {
-      this.debug('Unlinking pipe');
-      unlinkSync(this.pipe.path);
-    }
 
     return this;
   }
