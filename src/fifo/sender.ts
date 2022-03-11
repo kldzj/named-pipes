@@ -23,8 +23,8 @@ export class FIFOSender extends BaseSender {
 
     if (!this.writable) {
       this.socket = new Socket({ fd: this.fd, readable: false, writable: true });
-      this.socket.once('connect', () => this.emit('connected'));
-      this.socket.once('close', () => this.emit('close'));
+      this.socket.on('connect', () => this.emit('connect'));
+      this.socket.on('close', () => this.emit('close'));
       this.socket.on('error', (err) => this.emit('error', err));
       this.writable = new Writable({
         ...opts,

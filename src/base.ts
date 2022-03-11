@@ -69,9 +69,7 @@ export interface SenderOptions {
   autoDestroy?: boolean;
 }
 
-export interface SenderEvents extends EventMap {
-  connected: () => void;
-}
+export interface SenderEvents extends EventMap {}
 
 export abstract class BaseSender extends Base<SenderEvents, SenderOptions> {
   constructor(pipe: NamedPipe, opts: SenderOptions, debugName: string) {

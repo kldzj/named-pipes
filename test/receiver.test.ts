@@ -70,7 +70,7 @@ describe('Receiver', () => {
   });
 
   it('should be able to read with absolute path', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'named-pipe-test-'));
+    dir = process.platform === 'win32' ? 'test' : mkdtempSync(join(tmpdir(), 'named-pipe-test-'));
     pipe = createNamedPipe(join(dir, 'sock'));
 
     const sender = pipe.createSender();

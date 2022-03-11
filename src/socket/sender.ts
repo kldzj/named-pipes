@@ -83,7 +83,7 @@ export class SocketSender extends BaseSender {
 
       this.server.listen(this.pipe.path, () => {
         this.debug('Listening on %s', this.pipe.path);
-        this.emit('connected');
+        this.emit('connect');
         this.connected = true;
         resolve();
       });
@@ -104,7 +104,7 @@ export class SocketSender extends BaseSender {
 
   public destroy(): this {
     for (const socket of this.sockets) {
-      socket.destroy(new Error('Pipe destroyed'));
+      socket.destroy();
     }
 
     this.debug('Destroying SocketSender');
