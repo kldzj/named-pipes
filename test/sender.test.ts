@@ -29,6 +29,7 @@ describe('Sender', () => {
 
   it('should be able to produce a writable stream', async () => {
     pipe = createNamedPipe();
+    const callback = jest.fn();
     const sender = pipe.createSender();
     sender.once('connect', () => {
       const stream = sender.getWritableStream();
@@ -43,7 +44,6 @@ describe('Sender', () => {
     });
 
     await sender.connect();
-    const callback = jest.fn();
     await pipe.createReceiver().on('data', callback).connect();
   });
 });
