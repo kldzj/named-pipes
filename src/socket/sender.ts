@@ -18,10 +18,6 @@ export class SocketSenderWritable extends Writable {
   }
 
   _write(chunk: any, _encoding?: any, callback?: any): boolean {
-    if (!this.sender.isConnected()) {
-      return callback?.(new Error('Socket not connected')) ?? false;
-    }
-
     return this.sender.write(chunk, callback);
   }
 }
@@ -86,6 +82,10 @@ export class SocketSender extends BaseSender {
   }
 
   public write(chunk: any, callback?: (err?: Error) => void): boolean {
+    if (!this.isConnected()) {
+      return callback?.(new Error('Socket not connected')) ?? false;
+    }
+
     const sockets = this.getSockets();
     if (!sockets.length) {
       return false;
