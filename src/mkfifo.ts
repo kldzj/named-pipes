@@ -1,7 +1,6 @@
+import { existsSync } from 'fs';
 import { exec } from 'child_process';
 import { getDebugLogger } from './debug';
-
-export type FIFOMode = 'r' | 'w';
 
 const debug = getDebugLogger('mkfifo');
 
@@ -20,10 +19,15 @@ function unixCommandExists(command: string): Promise<boolean> {
   });
 }
 
-function _mkfifo(path: string, mode: FIFOMode): Promise<void> {
+function _mkfifo(path: string, mode?: number): Promise<void> {
   return new Promise((resolve, reject) => {
-    debug(`Creating FIFO at '${path}' with mode '${mode}'`);
-    exec(`mkfifo "${path}"`, (err, stdout, stderr) => {
+    if (existsSync(path)) {
+      return reject(new Error(`File '${path}' already exists`));
+    }
+
+    debug(`Creating FIFO at '${path}' ${mode ? `with mode ${mode?.toString(8)}` : 'without mode'}`);
+    const command = ['mkfifo', ...(mode ? [`-m="${mode.toString(8)}"`] : []), `"${path}"`].join(' ');
+    exec(command, (err, stdout, stderr) => {
       if (stdout) debug(stdout);
       if (err) {
         debug(stderr);
@@ -36,7 +40,7 @@ function _mkfifo(path: string, mode: FIFOMode): Promise<void> {
 }
 
 let exists: boolean;
-export async function mkfifo(path: string, mode: FIFOMode) {
+export async function mkfifo(path: string, mode?: number) {
   if (process.platform === 'win32') {
     throw new Error('mkfifo is not supported on Windows');
   }

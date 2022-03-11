@@ -1,14 +1,31 @@
 import { Socket } from 'net';
-import { Writable, WritableOptions } from 'stream';
-import { createWriteStream, unlinkSync, open, close, constants as FSC } from 'fs';
-import { NamedPipe } from '..';
+import { FileHandle } from 'fs/promises';
+import { TransformOptions, Writable } from 'stream';
+import { promises as fs, constants as FSC } from 'fs';
+import { mkfifo, NamedPipe, getDebugLogger } from '..';
 import { BaseSender, SenderOptions } from '../base';
-import { mkfifo } from '../mkfifo';
 
 export const DEFAULT_FIFO_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
+export class FIFOSenderWritable extends Writable {
+  private _sender: FIFOSender;
+
+  get sender(): FIFOSender {
+    return this._sender;
+  }
+
+  constructor(sender: FIFOSender, opts?: TransformOptions) {
+    super(opts);
+    this._sender = sender;
+  }
+
+  _write(chunk: any, _encoding?: any, callback?: any): boolean {
+    return this.sender.write(chunk, callback);
+  }
+}
+
 export class FIFOSender extends BaseSender {
-  private fd?: number;
+  private handle?: FileHandle;
   private socket?: Socket;
   private writable?: Writable;
 
@@ -16,73 +33,64 @@ export class FIFOSender extends BaseSender {
     super(pipe, opts, 'fifo');
   }
 
-  public getWritableStream(opts?: WritableOptions): Writable {
-    if (!this.fd || !this.isConnected()) {
+  public getSocket(): Socket | undefined {
+    return this.socket as Socket | undefined;
+  }
+
+  public getWritableStream(opts?: TransformOptions): Writable {
+    if (!this.socket) {
       throw new Error('Not connected');
     }
 
     if (!this.writable) {
-      this.socket = new Socket({ fd: this.fd, readable: false, writable: true });
-      this.socket.on('connect', () => this.emit('connect'));
-      this.socket.on('close', () => this.emit('close'));
-      this.socket.on('error', (err) => this.emit('error', err));
-      this.writable = new Writable({
-        ...opts,
-        write: (chunk: any, _: BufferEncoding, cb: (e?: Error | null) => void) => {
-          this.debug(`Writing ${chunk.length} bytes`);
-          return this.socket?.write(chunk, _, cb) ?? false;
-        },
-      });
+      this.writable = new FIFOSenderWritable(this, opts);
     }
 
     return this.writable;
   }
 
-  private open(): Promise<number> {
-    return new Promise((resolve, reject) => {
-      open(this.pipe.path, FSC.O_RDWR | FSC.O_NONBLOCK, (err, fd) => {
-        if (err) {
-          return reject(err);
-        }
-
-        resolve(fd);
-      });
-    });
-  }
-
-  public async connect(): Promise<void> {
+  public async connect(): Promise<this> {
     if (this.isConnected()) {
-      return;
+      return this;
     }
 
     if (!this.exists()) {
       this.debug('Creating FIFO');
-      await mkfifo(this.pipe.path, 'w');
+      await mkfifo(this.pipe.path, this.pipe.mode);
     }
 
-    this.fd = await this.open();
-    this.connected = true;
+    this.handle = await fs.open(this.pipe.path, FSC.O_RDWR | FSC.O_NONBLOCK);
+    const socket = new Socket({ fd: this.handle.fd, readable: false });
+    this.socket = socket;
+    socket.on('error', (err) => this.emit('error', err));
+    socket.on('close', () => this.emit('close'));
+    socket.on('connect', () => {
+      this.emit('connect');
+      this.connected = true;
+    });
+
+    return this;
   }
 
-  public write(data: any): boolean {
-    if (!this.isConnected()) {
-      throw new Error('Not connected');
+  public write(chunk: any, callback?: (err?: Error) => void): boolean {
+    if (!this.socket) {
+      return callback?.(new Error('Not connected')) ?? false;
     }
 
-    return this.getWritableStream().write(data);
+    this.debug(`Writing ${chunk.length} bytes`);
+    return this.socket.write(chunk, callback);
   }
 
-  public destroy(): this {
+  public async destroy(): Promise<this> {
     this.debug('Destroying FIFOSender');
-    this.connected = false;
+    this.socket?.destroy();
     this.writable?.destroy();
+    this.socket = undefined;
+    this.writable = undefined;
+    this.connected = false;
 
-    if (this.fd) {
-      close(this.fd, () => {
-        if (this.exists()) {
-          unlinkSync(this.pipe.path);
-        }
-      });
+    if (this.exists()) {
+      await fs.unlink(this.pipe.path);
     }
 
     return this;

@@ -1,7 +1,7 @@
-import { Writable, WritableOptions } from 'stream';
+import { TransformOptions, Writable } from 'stream';
 import { Server, Socket } from 'net';
 import { NamedPipe } from '..';
-import { EventMap, BaseSender, SenderOptions } from '../base';
+import { BaseSender, SenderOptions } from '../base';
 
 export const DEFAULT_SOCKET_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
@@ -12,28 +12,13 @@ export class SocketSenderWritable extends Writable {
     return this._sender;
   }
 
-  constructor(sender: SocketSender, opts?: WritableOptions) {
+  constructor(sender: SocketSender, opts?: TransformOptions) {
     super(opts);
     this._sender = sender;
   }
 
   _write(chunk: any, _encoding?: any, callback?: any): boolean {
-    const sockets = this.sender.getSockets();
-    if (!sockets.length) {
-      return false;
-    }
-
-    function write(socket?: Socket) {
-      if (!socket) return callback();
-      if (socket.writable) {
-        socket.write(chunk, () => write(sockets.shift()));
-      } else {
-        write(sockets.shift());
-      }
-    }
-
-    write(sockets.shift());
-    return true;
+    return this.sender.write(chunk, callback);
   }
 }
 
@@ -45,7 +30,7 @@ export class SocketSender extends BaseSender {
     super(pipe, opts, 'socket');
   }
 
-  public getWritableStream(opts?: WritableOptions): SocketSenderWritable {
+  public getWritableStream(opts?: TransformOptions): SocketSenderWritable {
     return new SocketSenderWritable(this, opts);
   }
 
@@ -57,10 +42,10 @@ export class SocketSender extends BaseSender {
     return this.sockets;
   }
 
-  public connect(): Promise<void> {
+  public connect(): Promise<this> {
     return new Promise((resolve) => {
       if (this.isConnected()) {
-        return resolve();
+        return resolve(this);
       }
 
       this.server = new Server((socket) => {
@@ -85,33 +70,40 @@ export class SocketSender extends BaseSender {
         this.debug('Listening on %s', this.pipe.path);
         this.emit('connect');
         this.connected = true;
-        resolve();
+        resolve(this);
       });
     });
   }
 
-  public write(data: any): boolean {
-    if (!this.isConnected()) {
-      throw new Error('Not connected');
+  public write(chunk: any, callback?: (err?: Error) => void): boolean {
+    const sockets = this.getSockets();
+    if (!sockets.length) {
+      return false;
     }
 
-    const sockets = this.sockets.filter((socket) => socket.writable);
-    this.debug('Writing %d bytes to %d socket(s)', data.length, sockets.length);
-    sockets.forEach((socket) => socket.write(data));
+    function write(socket?: Socket) {
+      if (!socket) return callback?.() ?? false;
+      if (socket.writable) {
+        socket.write(chunk, () => write(sockets.shift()));
+      } else {
+        write(sockets.shift());
+      }
+    }
 
-    return sockets.length > 0;
+    write(sockets.shift());
+    return true;
   }
 
-  public destroy(): this {
-    for (const socket of this.sockets) {
-      socket.destroy();
-    }
+  public destroy(): Promise<this> {
+    return new Promise((resolve) => {
+      for (const socket of this.sockets) {
+        socket.destroy();
+      }
 
-    this.debug('Destroying SocketSender');
-    this.server?.close();
-    this.server = undefined;
-    this.connected = false;
-
-    return this;
+      this.debug('Destroying SocketSender');
+      this.server?.close(() => resolve(this));
+      this.server = undefined;
+      this.connected = false;
+    });
   }
 }

@@ -1,11 +1,9 @@
-import { Socket } from 'net';
 import { Readable, TransformOptions, Writable, WritableOptions } from 'stream';
 import { TypedEmitter, ListenerSignature } from 'tiny-typed-emitter';
 import { NamedPipe } from '.';
 import { Debugger, getDebugLogger } from './debug';
 
-export type EventMap = ListenerSignature<unknown>;
-interface BaseEvents extends EventMap {
+interface BaseEvents extends ListenerSignature<unknown> {
   connect: () => void;
   close: () => void;
   error: (error: Error) => void;
@@ -37,9 +35,9 @@ abstract class Base<T extends ListenerSignature<T>, O extends {}> extends TypedE
     return this.connected;
   }
 
-  public abstract connect(): Promise<void>;
+  public abstract connect(): Promise<this>;
 
-  public abstract destroy(): void;
+  public abstract destroy(): Promise<this>;
 
   protected exists(): boolean {
     return this.pipe.exists();
@@ -51,13 +49,13 @@ export interface ReceiverOptions {
   allowHalfOpen?: boolean;
 }
 
-export interface SocketReceiverEvents extends EventMap {
+export interface ReceiverEvents extends BaseEvents {
   end: () => void;
   data: (data: Buffer) => void;
   timeout: () => void;
 }
 
-export abstract class BaseReceiver extends Base<SocketReceiverEvents, ReceiverOptions> {
+export abstract class BaseReceiver extends Base<ReceiverEvents, ReceiverOptions> {
   constructor(pipe: NamedPipe, opts: ReceiverOptions, debugName: string) {
     super(pipe, opts, `receiver:${debugName}`);
   }
@@ -69,14 +67,14 @@ export interface SenderOptions {
   autoDestroy?: boolean;
 }
 
-export interface SenderEvents extends EventMap {}
+export interface SenderEvents extends BaseEvents {}
 
 export abstract class BaseSender extends Base<SenderEvents, SenderOptions> {
   constructor(pipe: NamedPipe, opts: SenderOptions, debugName: string) {
     super(pipe, opts, `sender:${debugName}`);
   }
 
-  public abstract write(data: any): boolean;
+  public abstract write(data: any, callback?: (err?: Error) => void): boolean;
 
   public abstract getWritableStream(opts?: WritableOptions): Writable;
 }

@@ -1,5 +1,6 @@
 import { Socket } from 'net';
-import { open, close, constants as FSC } from 'fs';
+import { FileHandle } from 'fs/promises';
+import { promises as fs, constants as FSC } from 'fs';
 import { PassThrough, Readable, TransformOptions } from 'stream';
 import { NamedPipe } from '..';
 import { BaseReceiver, ReceiverOptions } from '../base';
@@ -11,7 +12,7 @@ export const DEFAULT_FIFO_RECEIVER_OPTIONS: ReceiverOptions = {
 };
 
 export class FIFOReceiver extends BaseReceiver {
-  private fd?: number;
+  private handle?: FileHandle;
   private readable?: Readable;
 
   constructor(pipe: NamedPipe, opts: ReceiverOptions = DEFAULT_FIFO_RECEIVER_OPTIONS) {
@@ -26,29 +27,23 @@ export class FIFOReceiver extends BaseReceiver {
     return this.readable.pipe(new PassThrough(opts));
   }
 
-  private open(): Promise<number> {
-    return new Promise((resolve, reject) => {
-      open(this.pipe.path, FSC.O_RDWR | FSC.O_NONBLOCK, (err, fd) => {
-        if (err) {
-          return reject(err);
-        }
-
-        resolve(fd);
-      });
-    });
-  }
-
-  public async connect(): Promise<void> {
+  public async connect(): Promise<this> {
     if (this.isConnected()) {
-      return;
+      return this;
     }
 
     if (!this.exists()) {
-      await mkfifo(this.pipe.path, 'r');
+      await mkfifo(this.pipe.path, this.pipe.mode);
     }
 
-    this.fd = await this.open();
-    this.readable = new Socket({ fd: this.fd, readable: true, writable: false });
+    this.handle = await fs.open(this.pipe.path, FSC.O_RDWR | FSC.O_NONBLOCK);
+    const socket = new Socket({ fd: this.handle.fd, writable: false });
+    socket.once('connect', () => {
+      this.emit('connect');
+      this.connected = true;
+    });
+
+    this.readable = socket;
     this.readable.on('error', (err) => this.emit('error', err));
     this.readable.on('close', () => this.emit('close'));
     this.readable.on('data', (c) => {
@@ -56,15 +51,19 @@ export class FIFOReceiver extends BaseReceiver {
       this.emit('data', c);
     });
 
-    this.emit('connect');
-    this.connected = true;
+    return this;
   }
 
-  public destroy() {
+  public async destroy(): Promise<this> {
     this.debug('Destroying FIFOReceiver');
     this.readable?.destroy();
-    if (this.fd) {
-      close(this.fd);
+    this.readable = undefined;
+    this.connected = false;
+
+    if (this.exists()) {
+      await fs.unlink(this.pipe.path);
     }
+
+    return this;
   }
 }

@@ -1,10 +1,10 @@
 import { existsSync } from 'fs';
-import { getDebugLogger, SocketReceiver, SocketSender, FIFOMode } from '.';
+import { getDebugLogger, SocketReceiver, SocketSender, FIFOReceiver, FIFOSender } from '.';
 import { BaseSender, BaseReceiver, ReceiverOptions, SenderOptions } from './base';
-import { FIFOReceiver, FIFOSender } from './fifo';
 
 export class NamedPipe {
   private _path: string;
+  private _mode?: number;
   private sender?: BaseSender;
   private receivers: BaseReceiver[] = [];
   private debug = getDebugLogger('pipe');
@@ -13,8 +13,13 @@ export class NamedPipe {
     return this._path;
   }
 
-  constructor(path: string) {
+  get mode() {
+    return this._mode;
+  }
+
+  constructor(path: string, mode?: number) {
     this._path = path;
+    this._mode = mode;
   }
 
   public exists(): boolean {
@@ -50,10 +55,10 @@ export class NamedPipe {
     return this.sender;
   }
 
-  public destroy(): this {
+  public async destroy(): Promise<this> {
     this.debug('Destroying pipe');
-    this.sender?.destroy();
-    this.receivers.forEach((receiver) => receiver.destroy());
+    await Promise.all(this.receivers.map((receiver) => receiver.destroy()));
+    await this.sender?.destroy();
     return this;
   }
 }

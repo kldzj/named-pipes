@@ -1,15 +1,7 @@
 import { Socket } from 'net';
 import { PassThrough, Readable, TransformOptions } from 'stream';
 import { NamedPipe } from '..';
-import { EventMap, BaseReceiver, ReceiverOptions } from '../base';
-
-export interface SocketReceiverEvents extends EventMap {
-  end: () => void;
-  data: (data: Buffer) => void;
-  ready: () => void;
-  drain: () => void;
-  timeout: () => void;
-}
+import { BaseReceiver, ReceiverOptions } from '../base';
 
 export const DEFAULT_SOCKET_RECEIVER_OPTIONS: ReceiverOptions = {
   autoDestroy: true,
@@ -37,14 +29,14 @@ export class SocketReceiver extends BaseReceiver {
     return this.socket;
   }
 
-  public connect(): Promise<void> {
+  public connect(): Promise<this> {
     return new Promise((resolve, reject) => {
       if (!this.exists()) {
         return reject(new Error('Pipe not found'));
       }
 
       if (this.isConnected()) {
-        return resolve();
+        return resolve(this);
       }
 
       this.socket = new Socket({
@@ -65,7 +57,7 @@ export class SocketReceiver extends BaseReceiver {
       this.socket.on('connect', () => this.emit('connect'));
       this.socket.on('error', (e) => this.emit('error', e));
       this.socket.on('data', (c) => {
-        this.debug('Reading %d bytes', c.length);
+        this.debug('Received %d bytes', c.length);
         this.emit('data', c);
       });
 
@@ -76,18 +68,21 @@ export class SocketReceiver extends BaseReceiver {
 
         // Windows seems to need a little bit of time to connect
         if (process.platform === 'win32') {
-          delay(10).then(() => resolve());
+          delay(10).then(() => resolve(this));
         } else {
-          resolve();
+          resolve(this);
         }
       });
     });
   }
 
-  public destroy() {
-    this.debug('Destroying SocketReceiver');
-    this.socket?.destroy();
-    this.socket = undefined;
-    this.connected = false;
+  public destroy(): Promise<this> {
+    return new Promise((resolve) => {
+      this.debug('Destroying SocketReceiver');
+      this.socket?.destroy();
+      this.socket = undefined;
+      this.connected = false;
+      resolve(this);
+    });
   }
 }
