@@ -75,9 +75,8 @@ export class SocketSender extends BaseSender {
         this.debug('Listening on %s', this.pipe.path);
         this.emit('connect');
         this.connected = true;
+        resolve(this);
       });
-
-      resolve(this);
     });
   }
 
