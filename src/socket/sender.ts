@@ -24,14 +24,19 @@ export class SocketSenderWritable extends Writable {
 
 export class SocketSender extends BaseSender {
   private server?: Server;
+  private writable?: Writable;
   private sockets: Socket[] = [];
 
   constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_SOCKET_SENDER_OPTIONS) {
     super(pipe, opts, 'socket');
   }
 
-  public getWritableStream(opts?: TransformOptions): SocketSenderWritable {
-    return new SocketSenderWritable(this, opts);
+  public getWritableStream(opts?: TransformOptions): Writable {
+    if (!this.writable) {
+      this.writable = new SocketSenderWritable(this, opts);
+    }
+
+    return this.writable;
   }
 
   public getServer(): Server | undefined {
