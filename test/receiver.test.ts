@@ -56,6 +56,8 @@ describe('Receiver', () => {
       });
     });
 
+    await sender.destroy();
+    await delay(100);
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -82,6 +84,8 @@ describe('Receiver', () => {
       });
     });
 
+    await sender.destroy();
+    await delay(100);
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -109,7 +113,8 @@ describe('Receiver', () => {
       });
     });
 
-    expect(callback).toHaveBeenCalledTimes(2);
+    await sender.destroy();
+    await delay(100);
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -137,6 +142,8 @@ describe('Receiver', () => {
       });
     });
 
+    await sender.destroy();
+    await delay(100);
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -157,12 +164,18 @@ describe('Receiver', () => {
           sender.once('connected', () => {
             sender.write('hello');
             sender.write('world', (err) => {
-              sender.destroy().then(() => (err ? reject(err) : resolve()));
+              if (err) {
+                return reject(err);
+              }
+
+              resolve();
             });
           });
         });
 
-        expect(callback).toHaveBeenCalledTimes(2);
+        await sender.destroy();
+        await delay(100);
+        await pipe.destroy();
         expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
       })
     );

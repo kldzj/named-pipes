@@ -3,7 +3,7 @@ import { FileHandle } from 'fs/promises';
 import { TransformOptions, Writable } from 'stream';
 import { promises as fs, constants as FSC } from 'fs';
 import { mkfifo, NamedPipe } from '..';
-import { BaseSender, SenderOptions } from '../base';
+import { BaseSender, delay, SenderOptions } from '../base';
 
 export const DEFAULT_FIFO_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
@@ -21,6 +21,13 @@ export class FIFOSenderWritable extends Writable {
 
   _write(chunk: any, _encoding?: any, callback?: any): boolean {
     return this.sender.write(chunk, callback);
+  }
+
+  _destroy(_error: Error | null, callback: (error?: Error | null) => void): void {
+    this.sender
+      .destroy()
+      .then(() => callback())
+      .catch(callback);
   }
 }
 
@@ -64,9 +71,11 @@ export class FIFOSender extends BaseSender {
     this.socket = socket;
     socket.on('error', (err) => this.emit('error', err));
     socket.on('close', () => this.emit('close'));
-    socket.on('connect', () => {
-      this.emit('connected');
+
+    delay(10).then(() => {
+      this.debug('Connected');
       this.connected = true;
+      this.emit('connected');
     });
 
     return this;
@@ -83,8 +92,8 @@ export class FIFOSender extends BaseSender {
 
   public async destroy(): Promise<this> {
     this.debug('Destroying FIFOSender');
-    this.socket?.destroy();
     this.writable?.destroy();
+    this.socket?.destroy();
     this.socket = undefined;
     this.writable = undefined;
     this.connected = false;

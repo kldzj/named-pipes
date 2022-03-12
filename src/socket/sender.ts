@@ -1,10 +1,8 @@
 import { TransformOptions, Writable } from 'stream';
 import { Server, Socket } from 'net';
 import { NamedPipe } from '..';
-import { BaseSender, SenderOptions } from '../base';
+import { BaseSender, SenderOptions, delay } from '../base';
 import { SocketWriteError } from './error';
-import { delay } from '.';
-import { endianness } from 'os';
 
 export const DEFAULT_SOCKET_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 

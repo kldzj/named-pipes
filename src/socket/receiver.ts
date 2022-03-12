@@ -1,8 +1,7 @@
 import { Socket } from 'net';
 import { PassThrough, Readable, TransformOptions } from 'stream';
-import { delay } from '.';
 import { NamedPipe } from '..';
-import { BaseReceiver, ReceiverOptions } from '../base';
+import { BaseReceiver, ReceiverOptions, delay } from '../base';
 
 export const DEFAULT_SOCKET_RECEIVER_OPTIONS: ReceiverOptions = {
   autoDestroy: true,

@@ -2,6 +2,8 @@ import { Readable, TransformOptions, Writable, WritableOptions } from 'stream';
 import { TypedEmitter, ListenerSignature } from 'tiny-typed-emitter';
 import { NamedPipe, Debugger, getDebugLogger } from '.';
 
+export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 interface BaseEvents extends ListenerSignature<unknown> {
   close: () => void;
   error: (error: Error) => void;
