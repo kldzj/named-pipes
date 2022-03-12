@@ -8,7 +8,7 @@
     "pipe",
     "ipc"
   ],
-  "version": "1.1.2",
+  "version": "2.0.0",
   "main": "dist/index.js",
   "files": [
     "dist/**/*"
