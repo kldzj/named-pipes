@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
 import { getDebugLogger, SocketReceiver, SocketSender, FIFOReceiver, FIFOSender } from '.';
-import { BaseSender, BaseReceiver, ReceiverOptions, SenderOptions } from './base';
+import { BaseSender, BaseReceiver } from './base';
 
 export class NamedPipe {
   private _path: string;
@@ -26,30 +26,30 @@ export class NamedPipe {
     return existsSync(this.path);
   }
 
-  public createReceiver(opts?: ReceiverOptions): BaseReceiver {
+  public createReceiver(): BaseReceiver {
     let receiver: BaseReceiver;
     this.debug('Creating receiver');
     if (process.platform === 'win32') {
       this.debug('Falling back to SocketReceiver');
-      receiver = new SocketReceiver(this, opts);
+      receiver = new SocketReceiver(this);
     } else {
-      receiver = new FIFOReceiver(this, opts);
+      receiver = new FIFOReceiver(this);
     }
 
     this.receivers.push(receiver);
     return receiver;
   }
 
-  public createSender(opts?: SenderOptions): BaseSender {
+  public createSender(): BaseSender {
     if (this.sender) {
       return this.sender;
     }
 
     this.debug('Creating sender');
     if (process.platform === 'win32') {
-      this.sender = new SocketSender(this, opts);
+      this.sender = new SocketSender(this);
     } else {
-      this.sender = new FIFOSender(this, opts);
+      this.sender = new FIFOSender(this);
     }
 
     return this.sender;
