@@ -3,9 +3,7 @@ import { FileHandle } from 'fs/promises';
 import { TransformOptions, Writable } from 'stream';
 import { promises as fs, constants as FSC } from 'fs';
 import { mkfifo, NamedPipe } from '..';
-import { BaseSender, delay, SenderOptions } from '../base';
-
-export const DEFAULT_FIFO_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
+import { BaseSender, delay } from '../base';
 
 export class FIFOSenderWritable extends Writable {
   private _sender: FIFOSender;
@@ -36,8 +34,8 @@ export class FIFOSender extends BaseSender {
   private socket?: Socket;
   private writable?: Writable;
 
-  constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_FIFO_SENDER_OPTIONS) {
-    super(pipe, opts, 'fifo');
+  constructor(pipe: NamedPipe) {
+    super(pipe, 'fifo');
   }
 
   public getSocket(): Socket | undefined {

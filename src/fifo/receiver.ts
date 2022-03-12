@@ -3,19 +3,14 @@ import { FileHandle } from 'fs/promises';
 import { promises as fs, constants as FSC } from 'fs';
 import { PassThrough, Readable, TransformOptions } from 'stream';
 import { NamedPipe, mkfifo } from '..';
-import { BaseReceiver, delay, ReceiverOptions } from '../base';
-
-export const DEFAULT_FIFO_RECEIVER_OPTIONS: ReceiverOptions = {
-  autoDestroy: true,
-  allowHalfOpen: false,
-};
+import { BaseReceiver } from '../base';
 
 export class FIFOReceiver extends BaseReceiver {
   private handle?: FileHandle;
   private readable?: Readable;
 
-  constructor(pipe: NamedPipe, opts: ReceiverOptions = DEFAULT_FIFO_RECEIVER_OPTIONS) {
-    super(pipe, opts, 'fifo');
+  constructor(pipe: NamedPipe) {
+    super(pipe, 'fifo');
   }
 
   public getReadableStream(opts?: TransformOptions): Readable {

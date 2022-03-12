@@ -1,18 +1,13 @@
 import { Socket } from 'net';
 import { PassThrough, Readable, TransformOptions } from 'stream';
 import { NamedPipe } from '..';
-import { BaseReceiver, ReceiverOptions, delay } from '../base';
-
-export const DEFAULT_SOCKET_RECEIVER_OPTIONS: ReceiverOptions = {
-  autoDestroy: true,
-  allowHalfOpen: false,
-};
+import { BaseReceiver, delay } from '../base';
 
 export class SocketReceiver extends BaseReceiver {
   private socket?: Socket;
 
-  constructor(pipe: NamedPipe, opts: ReceiverOptions = DEFAULT_SOCKET_RECEIVER_OPTIONS) {
-    super(pipe, opts, 'socket');
+  constructor(pipe: NamedPipe) {
+    super(pipe, 'socket');
   }
 
   public getReadableStream(opts?: TransformOptions): Readable {

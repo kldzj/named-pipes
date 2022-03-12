@@ -54,7 +54,7 @@ It is recommended to use the `createNamedPipe` function instead of using the exp
 
 The order in which you connect the sender and receiver is important. If you are writing to a pipe and then reading from it, you should connect the sender first. If you're only reading from a pipe, you do not need a sender.
 
-### `createNamedPipe(name?: string)`
+### `createNamedPipe(name?: string, mode?: number)`
 
 In case the pipe name is not an absolute path, the pipe will be created in the os tmp directory. If the pipe name is omitted, a random name will be generated.
 
@@ -74,7 +74,7 @@ To listen to a named pipe you need to create a `Receiver` using `.createReceiver
 
 The sender will create a socket server on Windows or a FIFO on Unix and listen for incoming connections on the specified path. There will be a maximum of one sender per pipe. You must call `.connect()` to actually create the socket.
 
-**Important:** The FIFO sender might not be ready after the `.connect()` promise has resolved, so you should use the `.once('connect', () => {})` event to wait for the socket to be connected before writing, otherwise you'll have thread blocking issues.
+**Important:** The sender might not be ready after the `.connect()` promise has resolved, so you should use the `.once('connect', () => {})` event to wait for the socket to be connected before writing, otherwise you'll have thread blocking issues.
 
 Use `.getWritableStream()` to get a writable stream that you can pipe to.
 

@@ -1,10 +1,8 @@
 import { TransformOptions, Writable } from 'stream';
 import { Server, Socket } from 'net';
 import { NamedPipe } from '..';
-import { BaseSender, SenderOptions, delay } from '../base';
+import { BaseSender, delay } from '../base';
 import { SocketWriteError } from './error';
-
-export const DEFAULT_SOCKET_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
 export class SocketSenderWritable extends Writable {
   private _sender: SocketSender;
@@ -28,8 +26,8 @@ export class SocketSender extends BaseSender {
   private writable?: SocketSenderWritable;
   private sockets: Socket[] = [];
 
-  constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_SOCKET_SENDER_OPTIONS) {
-    super(pipe, opts, 'socket');
+  constructor(pipe: NamedPipe) {
+    super(pipe, 'socket');
   }
 
   public getWritableStream(opts?: TransformOptions): SocketSenderWritable {

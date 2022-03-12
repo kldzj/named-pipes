@@ -9,22 +9,16 @@ interface BaseEvents extends ListenerSignature<unknown> {
   error: (error: Error) => void;
 }
 
-abstract class Base<T extends ListenerSignature<T>, O extends {}> extends TypedEmitter<BaseEvents & T> {
+abstract class Base<T extends ListenerSignature<T>> extends TypedEmitter<BaseEvents & T> {
   protected debug: Debugger;
   protected pipe: NamedPipe;
   protected connected: boolean;
-  protected options: O;
 
-  constructor(pipe: NamedPipe, opts: O, debugName: string) {
+  constructor(pipe: NamedPipe, debugName: string) {
     super();
     this.pipe = pipe;
     this.connected = false;
-    this.options = opts;
     this.debug = getDebugLogger(debugName);
-  }
-
-  public getOptions(): O {
-    return this.options;
   }
 
   public getPipe(): NamedPipe {
@@ -44,11 +38,6 @@ abstract class Base<T extends ListenerSignature<T>, O extends {}> extends TypedE
   }
 }
 
-export interface ReceiverOptions {
-  autoDestroy?: boolean;
-  allowHalfOpen?: boolean;
-}
-
 export interface ReceiverEvents extends BaseEvents {
   connect: () => void;
   end: () => void;
@@ -56,25 +45,21 @@ export interface ReceiverEvents extends BaseEvents {
   timeout: () => void;
 }
 
-export abstract class BaseReceiver extends Base<ReceiverEvents, ReceiverOptions> {
-  constructor(pipe: NamedPipe, opts: ReceiverOptions, debugName: string) {
-    super(pipe, opts, `${debugName}:receiver`);
+export abstract class BaseReceiver extends Base<ReceiverEvents> {
+  constructor(pipe: NamedPipe, debugName: string) {
+    super(pipe, `${debugName}:receiver`);
   }
 
   public abstract getReadableStream(opts?: TransformOptions): Readable;
-}
-
-export interface SenderOptions {
-  autoDestroy?: boolean;
 }
 
 export interface SenderEvents extends BaseEvents {
   connected: () => void;
 }
 
-export abstract class BaseSender extends Base<SenderEvents, SenderOptions> {
-  constructor(pipe: NamedPipe, opts: SenderOptions, debugName: string) {
-    super(pipe, opts, `${debugName}:sender`);
+export abstract class BaseSender extends Base<SenderEvents> {
+  constructor(pipe: NamedPipe, debugName: string) {
+    super(pipe, `${debugName}:sender`);
   }
 
   public abstract write(data: any, callback?: (err?: Error) => void): boolean;
