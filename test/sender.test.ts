@@ -11,60 +11,45 @@ describe('Sender', () => {
   it('should be able to connect', async () => {
     pipe = createNamedPipe();
     const sender = pipe.createSender();
+    const receiver = pipe.createReceiver();
+
     await sender.connect();
+    await receiver.connect();
+    await new Promise<void>((resolve) => {
+      sender.once('connected', resolve);
+    });
+
     expect(sender.isConnected()).toBe(true);
   });
 
-  it('should be able to write', async () => {
-    pipe = createNamedPipe();
-    const sender = pipe.createSender();
-    await sender.connect();
-    expect(() => sender.write('test')).not.toThrow();
-  });
-
-  it('should throw when trying to write to destroyed socket', async () => {
-    pipe = createNamedPipe();
-    const sender = pipe.createSender();
-    await sender.connect();
-    sender.destroy();
-    expect(() => sender.write('test')).toThrow();
-  });
-
-  it('should emit when a socket connects', async () => {
-    pipe = createNamedPipe();
-    const sender = pipe.createSender();
-
+  it('should be able to produce a writable stream', async () => {
+    const pipe = createNamedPipe();
     const callback = jest.fn();
-    sender.on('socket:connected', callback);
-    await sender.connect();
-
     const receiver = pipe.createReceiver();
+    const sender = pipe.createSender();
+    receiver.on('data', callback);
+
+    await sender.connect();
     await receiver.connect();
+    await new Promise<void>((resolve, reject) => {
+      sender.once('connected', () => {
+        const stream = sender.getWritableStream();
+        stream.write('hello', () => {
+          stream.write('world', (err) => {
+            stream.end(() => {
+              if (err) {
+                return reject(err);
+              }
+
+              resolve();
+            });
+          });
+        });
+      });
+    });
 
     await delay(100);
-
-    expect(callback).toHaveBeenCalled();
-  });
-
-  it('should be able to produce a writable stream', async () => {
-    pipe = createNamedPipe();
-    const sender = pipe.createSender();
-    const stream = sender.getWritableStream();
-    await sender.connect();
-
-    const callback = jest.fn();
-    const receiver = pipe.createReceiver();
-    receiver.on('data', callback);
-    await receiver.connect();
-
-    expect(stream.writable).toBe(true);
-    stream.write('hello', () => [
-      stream.write('world', () => {
-        stream.end(() => {
-          expect(callback).toHaveBeenCalledTimes(2);
-          expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
-        });
-      }),
-    ]);
+    await pipe.destroy();
+    expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 });

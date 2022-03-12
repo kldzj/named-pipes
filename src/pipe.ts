@@ -1,45 +1,64 @@
 import { existsSync } from 'fs';
-import { getDebugLogger, Receiver, ReceiverOptions, Sender, SenderOptions } from '.';
+import { getDebugLogger, SocketReceiver, SocketSender, FIFOReceiver, FIFOSender } from '.';
+import { BaseSender, BaseReceiver } from './base';
 
 export class NamedPipe {
   private _path: string;
-  private sender?: Sender;
-  private receivers: Receiver[] = [];
+  private _mode?: number;
+  private sender?: BaseSender;
+  private receivers: BaseReceiver[] = [];
   private debug = getDebugLogger('pipe');
 
   get path() {
     return this._path;
   }
 
-  constructor(path: string) {
+  get mode() {
+    return this._mode;
+  }
+
+  constructor(path: string, mode?: number) {
     this._path = path;
+    this._mode = mode;
   }
 
   public exists(): boolean {
     return existsSync(this.path);
   }
 
-  public createReceiver(opts?: ReceiverOptions): Receiver {
+  public createReceiver(): BaseReceiver {
+    let receiver: BaseReceiver;
     this.debug('Creating receiver');
-    const receiver = new Receiver(this, opts);
+    if (process.platform === 'win32') {
+      this.debug('Falling back to SocketReceiver');
+      receiver = new SocketReceiver(this);
+    } else {
+      receiver = new FIFOReceiver(this);
+    }
+
     this.receivers.push(receiver);
     return receiver;
   }
 
-  public createSender(opts?: SenderOptions): Sender {
+  public createSender(): BaseSender {
     if (this.sender) {
       return this.sender;
     }
 
     this.debug('Creating sender');
-    this.sender = new Sender(this, opts);
+    if (process.platform === 'win32') {
+      this.sender = new SocketSender(this);
+    } else {
+      this.sender = new FIFOSender(this);
+    }
+
     return this.sender;
   }
 
-  public destroy(): this {
+  public async destroy(): Promise<this> {
     this.debug('Destroying pipe');
-    this.sender?.destroy();
-    this.receivers.forEach((receiver) => receiver.destroy());
+    await Promise.all(this.receivers.map((receiver) => receiver.destroy()));
+    await this.sender?.destroy();
     return this;
   }
 }
