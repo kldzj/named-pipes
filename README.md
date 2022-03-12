@@ -25,15 +25,15 @@ console.log('Path to socket:', pipe.path);
 const sender = pipe.createSender();
 const receiver = pipe.createReceiver();
 
-// handle data
-receiver.on('data', (c) => console.log(c.toString()));
-// or pipe it somewhere
-receiver.getReadableStream().pipe(someDestinationStream);
-
 // sender.connect() will create the pipe
 await sender.connect();
 // receiver.connect() will fail if the pipe does not exist
 await receiver.connect();
+
+// handle data
+receiver.on('data', (c) => console.log(c.toString()));
+// or pipe it somewhere
+receiver.getReadableStream().pipe(someDestinationStream);
 
 // FIFO sender might not be ready yet,
 // wait for socket to be connected
@@ -62,9 +62,9 @@ In case the pipe name is not an absolute path, the pipe will be created in the o
 
 Is a reference to a named pipe. You can use it to create a sender or receiver, or to destroy the pipe. On its own, it's not going to do anything. You can use the `.path` property to get the absolute path.
 
-To actually create a named pipe you need to create a `Sender` using `.createSender(opts?: SenderOptions)`. Returns `SocketSender` on Windows and `FIFOSender` on Unix.
+To actually create a named pipe you need to create a `Sender` using `.createSender()`. Returns `SocketSender` on Windows and `FIFOSender` on Unix.
 
-To listen to a named pipe you need to create a `Receiver` using `.createReceiver(opts?: ReceiverOptions)`. Returns `SocketReceiver` on Windows and `FIFOReceiver` on Unix.
+To listen to a named pipe you need to create a `Receiver` using `.createReceiver()`. Returns `SocketReceiver` on Windows and `FIFOReceiver` on Unix.
 
 `.exists()` should be used to check if the pipe exists before creating a `Receiver`.
 
@@ -75,8 +75,6 @@ To listen to a named pipe you need to create a `Receiver` using `.createReceiver
 The sender will create a socket server on Windows or a FIFO on Unix and listen for incoming connections on the specified path. There will be a maximum of one sender per pipe. You must call `.connect()` to actually create the socket.
 
 **Important:** The FIFO sender might not be ready after the `.connect()` promise has resolved, so you should use the `.once('connect', () => {})` event to wait for the socket to be connected before writing, otherwise you'll have thread blocking issues.
-
-Once destroyed, all connections will be closed. By default the sender will automatically be destroyed once the last listener has ended the stream. You can use the `autoDestroy` option to change this behaviour.
 
 Use `.getWritableStream()` to get a writable stream that you can pipe to.
 
