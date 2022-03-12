@@ -133,10 +133,15 @@ export class SocketSender extends BaseSender {
       this.connected = false;
       this.writable?.end();
       this.writable = undefined;
-      this.server?.close(() => {
-        this.server = undefined;
+
+      if (this.server) {
+        this.server.close(() => {
+          this.server = undefined;
+          resolve(this);
+        });
+      } else {
         resolve(this);
-      });
+      }
     });
   }
 }
