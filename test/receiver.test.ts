@@ -23,109 +23,121 @@ describe('Receiver', () => {
     const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
 
-    const callback = jest.fn();
-    receiver.on('connect', callback);
     await sender.connect();
     await receiver.connect();
-
-    sender.once('connect', () => {
-      expect(receiver.isConnected()).toBe(true);
-      expect(callback).toBeCalledTimes(1);
+    await new Promise<void>((resolve) => {
+      sender.once('connected', resolve);
     });
+
+    expect(sender.isConnected()).toBe(true);
+    expect(receiver.isConnected()).toBe(true);
   });
 
   it('should be able to read', async () => {
     pipe = createNamedPipe();
     const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
-    await sender.connect();
-    await receiver.connect();
 
     const callback = jest.fn();
     receiver.on('data', callback);
 
-    sender.once('connect', () => {
-      sender.write('test', () => {
-        expect(callback).toHaveBeenCalled();
-        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
-      });
-    });
-  });
-
-  it('should be able to read and destroy', async () => {
-    pipe = createNamedPipe();
-    const sender = pipe.createSender();
-    const receiver = pipe.createReceiver();
     await sender.connect();
     await receiver.connect();
 
-    const callback = jest.fn();
-    receiver.on('data', callback);
+    await new Promise<void>((resolve, reject) => {
+      sender.once('connected', () => {
+        sender.write('test', (err) => {
+          if (err) {
+            return reject(err);
+          }
 
-    sender.once('connect', () => {
-      sender.write('test', () => {
-        pipe = undefined;
-        expect(callback).toHaveBeenCalled();
-        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+          resolve();
+        });
       });
     });
+
+    expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
   it('should be able to read with mode', async () => {
     pipe = createNamedPipe('mode', 0o640);
     const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
-    await sender.connect();
-    await receiver.connect();
 
     const callback = jest.fn();
     receiver.on('data', callback);
 
-    sender.once('connect', () => {
-      sender.write('test', () => {
-        expect(callback).toHaveBeenCalled();
-        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+    await sender.connect();
+    await receiver.connect();
+
+    await new Promise<void>((resolve, reject) => {
+      sender.once('connected', () => {
+        sender.write('test', (err) => {
+          if (err) {
+            return reject(err);
+          }
+
+          resolve();
+        });
       });
     });
+
+    expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
   it('should be able to read from readable', async () => {
     pipe = createNamedPipe();
     const sender = pipe.createSender();
-    await sender.connect();
-
     const receiver = pipe.createReceiver();
-    await receiver.connect();
 
     const callback = jest.fn();
-    receiver.getReadableStream().on('data', callback);
+    await sender.connect();
+    await receiver.connect();
 
-    sender.once('connect', () => {
-      sender.write('test', () => {
-        expect(callback).toHaveBeenCalled();
-        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+    await new Promise<void>((resolve, reject) => {
+      sender.once('connected', () => {
+        receiver.getReadableStream().on('data', callback);
+        sender.write('hello', () => {
+          sender.write('world', (err) => {
+            if (err) {
+              return reject(err);
+            }
+
+            resolve();
+          });
+        });
       });
     });
+
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
   it('should be able to read with absolute path', async () => {
     dir = process.platform === 'win32' ? 'test' : mkdtempSync(join(tmpdir(), 'named-pipe-test-'));
     pipe = createNamedPipe(join(dir, 'sock'));
 
-    const sender = pipe.createSender();
-    await sender.connect();
-
     const callback = jest.fn();
+    const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
     receiver.on('data', callback);
+
+    await sender.connect();
     await receiver.connect();
 
-    sender.once('connect', () => {
-      sender.write('test', () => {
-        expect(callback).toHaveBeenCalled();
-        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+    await new Promise<void>((resolve, reject) => {
+      sender.once('connected', () => {
+        sender.write('test', (err) => {
+          if (err) {
+            return reject(err);
+          }
+
+          resolve();
+        });
       });
     });
+
+    expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
   it('should handle multiple pipes without blocking', async () => {
@@ -141,28 +153,17 @@ describe('Receiver', () => {
         await sender.connect();
         await receiver.connect();
 
-        if (process.platform === 'win32') {
-          await new Promise<void>((resolve) => {
-            if (sender.isConnected()) {
-              return resolve();
-            }
-
-            sender.once('connect', resolve);
-          });
-        }
-
         await new Promise<void>((resolve, reject) => {
-          sender.write('test', (err) => {
-            if (err) {
-              return reject(err);
-            }
-            resolve();
+          sender.once('connected', () => {
+            sender.write('hello');
+            sender.write('world', (err) => {
+              sender.destroy().then(() => (err ? reject(err) : resolve()));
+            });
           });
         });
 
-        await delay(25);
-        await pipe.destroy();
-        expect(callback).toBeCalledWith(expect.any(Buffer));
+        expect(callback).toHaveBeenCalledTimes(2);
+        expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
       })
     );
   });

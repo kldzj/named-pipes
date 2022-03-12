@@ -65,7 +65,7 @@ export class FIFOSender extends BaseSender {
     socket.on('error', (err) => this.emit('error', err));
     socket.on('close', () => this.emit('close'));
     socket.on('connect', () => {
-      this.emit('connect');
+      this.emit('connected');
       this.connected = true;
     });
 

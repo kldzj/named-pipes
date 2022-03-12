@@ -1,5 +1,6 @@
 import { Socket } from 'net';
 import { PassThrough, Readable, TransformOptions } from 'stream';
+import { delay } from '.';
 import { NamedPipe } from '..';
 import { BaseReceiver, ReceiverOptions } from '../base';
 
@@ -7,8 +8,6 @@ export const DEFAULT_SOCKET_RECEIVER_OPTIONS: ReceiverOptions = {
   autoDestroy: true,
   allowHalfOpen: false,
 };
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class SocketReceiver extends BaseReceiver {
   private socket?: Socket;
@@ -18,7 +17,7 @@ export class SocketReceiver extends BaseReceiver {
   }
 
   public getReadableStream(opts?: TransformOptions): Readable {
-    if (!this.socket || !this.isConnected()) {
+    if (!this.socket) {
       throw new Error('Socket not connected');
     }
 
@@ -39,39 +38,28 @@ export class SocketReceiver extends BaseReceiver {
         return resolve(this);
       }
 
-      this.socket = new Socket({
-        allowHalfOpen: this.options.allowHalfOpen,
-      });
-
+      this.socket = new Socket({ writable: false });
+      this.socket.on('timeout', () => this.emit('timeout'));
+      this.socket.on('error', (e) => this.emit('error', e));
+      this.socket.on('close', () => this.emit('close'));
       this.socket.on('end', () => {
-        this.debug('Socket ended');
-        if (this.options.autoDestroy) {
-          this.destroy();
-        }
-
+        this.connected = false;
         this.emit('end');
       });
 
-      this.socket.on('close', () => this.emit('close'));
-      this.socket.on('timeout', () => this.emit('timeout'));
-      this.socket.on('connect', () => this.emit('connect'));
-      this.socket.on('error', (e) => this.emit('error', e));
       this.socket.on('data', (c) => {
         this.debug('Received %d bytes', c.length);
         this.emit('data', c);
       });
 
-      this.debug('Connecting to pipe');
+      this.debug('Connecting to pipe', this.pipe.path);
       this.socket.connect({ path: this.pipe.path }, () => {
         this.debug('Connected to pipe');
-        this.connected = true;
-
-        // Windows seems to need a little bit of time to connect
-        if (process.platform === 'win32') {
-          delay(10).then(() => resolve(this));
-        } else {
+        delay(10).then(() => {
+          this.connected = true;
+          this.emit('connect');
           resolve(this);
-        }
+        });
       });
     });
   }

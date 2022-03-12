@@ -2,6 +2,9 @@ import { TransformOptions, Writable } from 'stream';
 import { Server, Socket } from 'net';
 import { NamedPipe } from '..';
 import { BaseSender, SenderOptions } from '../base';
+import { SocketWriteError } from './error';
+import { delay } from '.';
+import { endianness } from 'os';
 
 export const DEFAULT_SOCKET_SENDER_OPTIONS: SenderOptions = { autoDestroy: true };
 
@@ -24,14 +27,14 @@ export class SocketSenderWritable extends Writable {
 
 export class SocketSender extends BaseSender {
   private server?: Server;
-  private writable?: Writable;
+  private writable?: SocketSenderWritable;
   private sockets: Socket[] = [];
 
   constructor(pipe: NamedPipe, opts: SenderOptions = DEFAULT_SOCKET_SENDER_OPTIONS) {
     super(pipe, opts, 'socket');
   }
 
-  public getWritableStream(opts?: TransformOptions): Writable {
+  public getWritableStream(opts?: TransformOptions): SocketSenderWritable {
     if (!this.writable) {
       this.writable = new SocketSenderWritable(this, opts);
     }
@@ -39,13 +42,9 @@ export class SocketSender extends BaseSender {
     return this.writable;
   }
 
-  public getServer(): Server | undefined {
-    return this.server;
-  }
-
-  public getSockets(): Socket[] {
-    return this.sockets;
-  }
+  // public getServer(): Server | undefined {
+  //   return this.server;
+  // }
 
   public connect(): Promise<this> {
     return new Promise((resolve) => {
@@ -54,27 +53,40 @@ export class SocketSender extends BaseSender {
       }
 
       this.server = new Server((socket) => {
-        this.debug('New socket connected');
-        socket.on('end', () => {
-          this.debug('Connection ended');
-          this.sockets = this.sockets.filter((s) => s !== socket);
+        this.sockets.push(socket);
+        this.debug('New connection');
 
-          if (this.options.autoDestroy && this.sockets.length === 0) {
-            this.debug('All sockets are ended, destroying pipe');
-            this.destroy();
+        socket.on('error', (err) => {
+          this.debug('Socket error:', err.message);
+          if (err.message.includes('EPIPE')) {
+            socket.end();
           }
         });
 
-        this.sockets.push(socket);
+        socket.on('close', (hadError) => {
+          if (hadError) this.debug('Warning: Socket closed with error');
+          this.sockets = this.sockets.filter((sock) => sock !== socket);
+          this.debug('%d socket(s) remaining', this.sockets.length);
+
+          if (this.sockets.length === 0) {
+            this.server?.close();
+            this.connected = false;
+            this.emit('close');
+          }
+        });
+
+        if (!this.isConnected()) {
+          delay(10).then(() => {
+            this.debug('Connection ready');
+            this.connected = true;
+            this.emit('connected');
+          });
+        }
       });
 
-      this.server.on('close', () => this.emit('close'));
       this.server.on('error', (e) => this.emit('error', e));
-
-      this.server.listen(this.pipe.path, () => {
+      this.server.listen({ path: this.pipe.path }, () => {
         this.debug('Listening on %s', this.pipe.path);
-        this.emit('connect');
-        this.connected = true;
         resolve(this);
       });
     });
@@ -82,25 +94,35 @@ export class SocketSender extends BaseSender {
 
   public write(chunk: any, callback?: (err?: Error) => void): boolean {
     if (!this.isConnected()) {
-      return callback?.(new Error('Socket not connected')) ?? false;
-    }
-
-    const sockets = this.getSockets();
-    if (!sockets.length) {
+      callback?.(new Error('Not connected'));
       return false;
     }
 
-    function write(socket?: Socket, error?: Error): boolean {
-      if (!socket || error) return callback?.(error) ?? false;
-      if (socket.writable) {
-        return socket.write(chunk, (e) => write(sockets.shift(), e));
-      } else {
-        return write(sockets.shift());
-      }
-    }
+    const sockets = this.sockets.filter((socket) => socket.writable);
+    const count = sockets.length;
+
+    let finished = 0;
+    let errors: Error[] = [];
+    sockets.forEach((socket) => {
+      socket.write(chunk, (err) => {
+        if (err && !err.message.includes('EPIPE')) {
+          this.debug('Failed to write to socket:', err.message);
+          errors.push(err);
+        }
+
+        if (++finished === count) {
+          if (errors.length) {
+            callback?.(new SocketWriteError(`${errors.length} socket(s) failed to write`, this, errors));
+            return;
+          }
+
+          callback?.();
+        }
+      });
+    });
 
     this.debug('Writing %d bytes to %d socket(s)', chunk.length, sockets.length);
-    return write(sockets.shift());
+    return count > 0;
   }
 
   public destroy(): Promise<this> {
@@ -110,9 +132,13 @@ export class SocketSender extends BaseSender {
       }
 
       this.debug('Destroying SocketSender');
-      this.server?.close(() => resolve(this));
-      this.server = undefined;
       this.connected = false;
+      this.writable?.end();
+      this.writable = undefined;
+      this.server?.close(() => {
+        this.server = undefined;
+        resolve(this);
+      });
     });
   }
 }

@@ -10,11 +10,15 @@ describe('Sender', () => {
   it('should be able to connect', async () => {
     pipe = createNamedPipe();
     const sender = pipe.createSender();
-    await sender.connect();
+    const receiver = pipe.createReceiver();
 
-    sender.once('connect', () => {
-      expect(sender.isConnected()).toBe(true);
+    await sender.connect();
+    await receiver.connect();
+    await new Promise<void>((resolve) => {
+      sender.once('connected', resolve);
     });
+
+    expect(sender.isConnected()).toBe(true);
   });
 
   it('should be able to write', async () => {
@@ -22,28 +26,43 @@ describe('Sender', () => {
     const sender = pipe.createSender();
     await sender.connect();
 
-    sender.once('connect', () => {
-      expect(() => sender.write('test')).not.toThrow();
+    sender.once('connected', () => {
+      expect(() =>
+        sender.write('test', (err) => {
+          expect(err).toBeUndefined();
+        })
+      ).not.toThrow();
     });
   });
 
   it('should be able to produce a writable stream', async () => {
-    pipe = createNamedPipe();
+    const pipe = createNamedPipe();
     const callback = jest.fn();
+    const receiver = pipe.createReceiver();
     const sender = pipe.createSender();
-    sender.once('connect', () => {
-      const stream = sender.getWritableStream();
-      stream.write('hello', () => {
-        stream.write('world', () => {
-          stream.end(() => {
-            expect(callback).toHaveBeenCalledTimes(2);
-            expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+    receiver.on('data', callback);
+
+    await sender.connect();
+    await receiver.connect();
+    await new Promise<void>((resolve, reject) => {
+      sender.once('connected', () => {
+        const stream = sender.getWritableStream();
+        stream.write('hello', () => {
+          stream.write('world', (err) => {
+            stream.end(() => {
+              if (err) {
+                return reject(err);
+              }
+
+              resolve();
+            });
           });
         });
       });
     });
 
-    await sender.connect();
-    await pipe.createReceiver().on('data', callback).connect();
+    await pipe.destroy();
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 });

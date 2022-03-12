@@ -3,7 +3,6 @@ import { TypedEmitter, ListenerSignature } from 'tiny-typed-emitter';
 import { NamedPipe, Debugger, getDebugLogger } from '.';
 
 interface BaseEvents extends ListenerSignature<unknown> {
-  connect: () => void;
   close: () => void;
   error: (error: Error) => void;
 }
@@ -49,6 +48,7 @@ export interface ReceiverOptions {
 }
 
 export interface ReceiverEvents extends BaseEvents {
+  connect: () => void;
   end: () => void;
   data: (data: Buffer) => void;
   timeout: () => void;
@@ -56,7 +56,7 @@ export interface ReceiverEvents extends BaseEvents {
 
 export abstract class BaseReceiver extends Base<ReceiverEvents, ReceiverOptions> {
   constructor(pipe: NamedPipe, opts: ReceiverOptions, debugName: string) {
-    super(pipe, opts, `receiver:${debugName}`);
+    super(pipe, opts, `${debugName}:receiver`);
   }
 
   public abstract getReadableStream(opts?: TransformOptions): Readable;
@@ -66,11 +66,13 @@ export interface SenderOptions {
   autoDestroy?: boolean;
 }
 
-export interface SenderEvents extends BaseEvents {}
+export interface SenderEvents extends BaseEvents {
+  connected: () => void;
+}
 
 export abstract class BaseSender extends Base<SenderEvents, SenderOptions> {
   constructor(pipe: NamedPipe, opts: SenderOptions, debugName: string) {
-    super(pipe, opts, `sender:${debugName}`);
+    super(pipe, opts, `${debugName}:sender`);
   }
 
   public abstract write(data: any, callback?: (err?: Error) => void): boolean;
