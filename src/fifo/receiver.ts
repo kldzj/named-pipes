@@ -3,7 +3,7 @@ import { FileHandle } from 'fs/promises';
 import { promises as fs, constants as FSC } from 'fs';
 import { PassThrough, Readable, TransformOptions } from 'stream';
 import { NamedPipe, mkfifo } from '..';
-import { BaseReceiver, ReceiverOptions } from '../base';
+import { BaseReceiver, delay, ReceiverOptions } from '../base';
 
 export const DEFAULT_FIFO_RECEIVER_OPTIONS: ReceiverOptions = {
   autoDestroy: true,
@@ -37,11 +37,6 @@ export class FIFOReceiver extends BaseReceiver {
 
     this.handle = await fs.open(this.pipe.path, FSC.O_RDWR | FSC.O_NONBLOCK);
     const socket = new Socket({ fd: this.handle.fd, writable: false });
-    socket.once('connect', () => {
-      this.emit('connect');
-      this.connected = true;
-    });
-
     this.readable = socket;
     this.readable.on('error', (err) => this.emit('error', err));
     this.readable.on('close', () => this.emit('close'));
@@ -49,6 +44,9 @@ export class FIFOReceiver extends BaseReceiver {
       this.debug(`Received ${c.length} bytes`);
       this.emit('data', c);
     });
+
+    this.connected = true;
+    this.emit('connect');
 
     return this;
   }
