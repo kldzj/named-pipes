@@ -7,7 +7,7 @@ const debug = getDebugLogger('mkfifo');
 function unixCommandExists(command: string): Promise<boolean> {
   return new Promise((resolve) => {
     debug(`Checking if command '${command}' exists`);
-    const proc = spawn('command', ['-v', command], { shell: true, detached: false });
+    const proc = spawn('which', [command], { detached: false });
     proc.once('error', () => resolve(false));
     proc.once('exit', (code) => resolve(code === 0));
   });
