@@ -33,30 +33,36 @@ await receiver.connect();
 // handle data
 receiver.on('data', (c) => console.log(c.toString()));
 // or pipe it somewhere
-receiver.getReadableStream().pipe(someDestinationStream);
+// receiver.getReadableStream().pipe(someDestinationStream);
 
-// FIFO sender might not be ready yet,
+// Sender might not be ready yet,
 // wait for socket to be connected
-sender.once('connect', () => {
+sender.once('connected', () => {
   // use the convenience write method
   sender.write('hello world');
   // or create a writable stream and pipe to it
-  someSourceStream.pipe(sender.getWritableStream());
+  // someSourceStream.pipe(sender.getWritableStream());
 });
 
 // once you're done, destroy the pipe
 await pipe.destroy();
 ```
 
+[View example on RunKit](https://runkit.com/ddreck/named-pipes)
+
 ## Notes
 
 It is recommended to use the `createNamedPipe` function instead of using the exported classes directly.
 
-The order in which you connect the sender and receiver is important. If you are writing to a pipe and then reading from it, you should connect the sender first. If you're only reading from a pipe, you do not need a sender.
+The order in which you connect the sender and receiver is important. If you are writing to a pipe and then reading from it, you should connect the sender first.
+
+If you intend on only reading from a pipe, you do not need a sender. Vice versa, if you intend on only write to a pipe, you do not need a receiver.
 
 ### `createNamedPipe(name?: string, mode?: number)`
 
 In case the pipe name is not an absolute path, the pipe will be created in the os tmp directory. If the pipe name is omitted, a random name will be generated.
+
+On Windows, the mode is ignored.
 
 ### NamedPipe
 
