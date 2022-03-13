@@ -27,7 +27,7 @@ export class FIFOReceiver extends BaseReceiver {
     }
 
     if (!this.exists()) {
-      await mkfifo(this.pipe.path, this.pipe.mode);
+      throw new Error('FIFO does not exist');
     }
 
     this.handle = await fs.open(this.pipe.path, FSC.O_RDWR | FSC.O_NONBLOCK);
