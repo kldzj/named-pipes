@@ -23,6 +23,11 @@ export class NamedPipe {
   }
 
   public exists(): boolean {
+    if (process.platform === 'win32') {
+      // @todo: try to check for named pipe's existence
+      return true;
+    }
+
     return existsSync(this.path);
   }
 
