@@ -34,8 +34,12 @@ export class SocketReceiver extends BaseReceiver {
 
       this.socket = new Socket({ writable: false });
       this.socket.on('timeout', () => this.emit('timeout'));
-      this.socket.on('error', (e) => this.emit('error', e));
       this.socket.on('close', () => this.emit('close'));
+      this.socket.on('error', (e) => {
+        this.emit('error', e);
+        reject(e);
+      });
+
       this.socket.on('end', () => {
         this.connected = false;
         this.emit('end');
