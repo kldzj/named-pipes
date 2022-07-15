@@ -1,17 +1,9 @@
 import { existsSync } from 'fs';
 import { spawn } from 'child_process';
+import { which } from '@kldzj/which';
 import { getDebugLogger } from './debug';
 
 const debug = getDebugLogger('mkfifo');
-
-function unixCommandExists(command: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    debug(`Checking if command '${command}' exists`);
-    const proc = spawn('which', [command], { detached: false });
-    proc.once('error', () => resolve(false));
-    proc.once('exit', (code) => resolve(code === 0));
-  });
-}
 
 function _mkfifo(path: string, mode?: number): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -39,7 +31,7 @@ export async function mkfifo(path: string, mode?: number) {
     throw new Error('mkfifo is not supported on Windows');
   }
 
-  if (exists || (exists = await unixCommandExists('mkfifo'))) {
+  if (exists || (exists = which.sync('mkfifo') !== null)) {
     await _mkfifo(path, mode);
   } else {
     throw new Error('Unsupported platform: mkfifo is not available');
