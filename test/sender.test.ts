@@ -48,7 +48,7 @@ describe("Sender", () => {
       });
     });
 
-    await pipe.destroy();
+    await sender.destroy();
     await delay(100);
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });

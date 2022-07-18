@@ -177,8 +177,8 @@ describe("Receiver", () => {
         });
 
         await sender.destroy();
-        await pipe.destroy();
         await delay(100);
+        await pipe.destroy();
         expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
       })
     );
