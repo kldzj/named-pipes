@@ -6,13 +6,13 @@ import { createNamedPipe, NamedPipe } from "../src";
 
 let dir: string | undefined;
 let pipe: NamedPipe | undefined;
-afterEach(async () => {
-  await pipe?.destroy();
+afterEach(() => {
   pipe = undefined;
 
   if (dir) {
     try {
       unlinkSync(dir);
+      dir = undefined;
     } catch (_) {}
   }
 });
@@ -31,6 +31,7 @@ describe("Receiver", () => {
 
     expect(sender.isConnected()).toBe(true);
     expect(receiver.isConnected()).toBe(true);
+    await pipe.destroy();
   });
 
   it("should be able to read", async () => {
@@ -58,6 +59,7 @@ describe("Receiver", () => {
 
     await sender.destroy();
     await delay(100);
+    await pipe.destroy();
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -86,6 +88,7 @@ describe("Receiver", () => {
 
     await sender.destroy();
     await delay(100);
+    await pipe.destroy();
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -115,6 +118,7 @@ describe("Receiver", () => {
 
     await sender.destroy();
     await delay(100);
+    await pipe.destroy();
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 
@@ -147,6 +151,7 @@ describe("Receiver", () => {
 
     await sender.destroy();
     await delay(100);
+    await pipe.destroy();
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 

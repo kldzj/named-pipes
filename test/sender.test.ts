@@ -2,8 +2,7 @@ import { delay } from ".";
 import { createNamedPipe, NamedPipe } from "../src";
 
 let pipe: NamedPipe | undefined;
-afterEach(async () => {
-  await pipe?.destroy();
+afterEach(() => {
   pipe = undefined;
 });
 
@@ -20,6 +19,7 @@ describe("Sender", () => {
     });
 
     expect(sender.isConnected()).toBe(true);
+    await pipe.destroy();
   });
 
   it("should be able to produce a writable stream", async () => {
@@ -48,8 +48,10 @@ describe("Sender", () => {
       });
     });
 
-    await sender.destroy();
     await delay(100);
+
+    await sender.destroy();
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
+    await pipe.destroy();
   });
 });
