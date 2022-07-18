@@ -1,7 +1,9 @@
-import Debug from 'debug';
+import createDebugger from "@kldzj/debug";
+
+const debug = createDebugger("named-pipe");
 
 export function getDebugLogger(name: string) {
-  return Debug(`named-pipe:${name}`);
+  return debug.createChild(name).createFunction();
 }
 
-export type Debugger = Debug.Debugger;
+export type Debugger = typeof debug.debug;
