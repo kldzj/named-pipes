@@ -1,14 +1,14 @@
-import { delay } from '.';
-import { createNamedPipe, NamedPipe } from '../src';
+import { delay } from ".";
+import { createNamedPipe, NamedPipe } from "../src";
 
 let pipe: NamedPipe | undefined;
-afterEach(() => {
-  pipe?.destroy();
+afterEach(async () => {
+  await pipe?.destroy();
   pipe = undefined;
 });
 
-describe('Sender', () => {
-  it('should be able to connect', async () => {
+describe("Sender", () => {
+  it("should be able to connect", async () => {
     pipe = createNamedPipe();
     const sender = pipe.createSender();
     const receiver = pipe.createReceiver();
@@ -16,26 +16,26 @@ describe('Sender', () => {
     await sender.connect();
     await receiver.connect();
     await new Promise<void>((resolve) => {
-      sender.once('connected', resolve);
+      sender.once("connected", resolve);
     });
 
     expect(sender.isConnected()).toBe(true);
   });
 
-  it('should be able to produce a writable stream', async () => {
+  it("should be able to produce a writable stream", async () => {
     const pipe = createNamedPipe();
     const callback = jest.fn();
     const receiver = pipe.createReceiver();
     const sender = pipe.createSender();
-    receiver.on('data', callback);
+    receiver.on("data", callback);
 
     await sender.connect();
     await receiver.connect();
     await new Promise<void>((resolve, reject) => {
-      sender.once('connected', () => {
+      sender.once("connected", () => {
         const stream = sender.getWritableStream();
-        stream.write('hello', () => {
-          stream.write('world', (err) => {
+        stream.write("hello", () => {
+          stream.write("world", (err) => {
             stream.end(() => {
               if (err) {
                 return reject(err);
@@ -48,8 +48,8 @@ describe('Sender', () => {
       });
     });
 
-    await delay(100);
     await pipe.destroy();
+    await delay(100);
     expect(callback).toHaveBeenCalledWith(expect.any(Buffer));
   });
 });
